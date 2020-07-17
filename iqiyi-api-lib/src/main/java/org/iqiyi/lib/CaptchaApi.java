@@ -15,7 +15,7 @@ public class CaptchaApi {
         this.token = token;
     }
 
-    private JSONObject postJson(JSONObject data, Proxy proxy) throws Exception {
+    private JSONObject postJson(JSONObject data, HttpServer.HttpProxy proxy) throws Exception {
         HttpServer httpServer=new HttpServer(proxy);
         try{
             HttpServer.HttpResponse response= httpServer.request(data).execute();
@@ -26,7 +26,7 @@ public class CaptchaApi {
             httpServer.close();
         }
     }
-    private String postString(JSONObject data,Proxy proxy) throws Exception {
+    private String postString(JSONObject data,HttpServer.HttpProxy proxy) throws Exception {
         HttpServer httpServer=new HttpServer(proxy);
         try{
             HttpServer.HttpResponse response= httpServer.request(data).execute();
@@ -42,7 +42,7 @@ public class CaptchaApi {
      * 初始化验证码密钥
      * @return 返回sid,sr 密钥数据
      */
-    private JSONObject captchaInitKey( Proxy proxy) throws Exception {
+    private JSONObject captchaInitKey( HttpServer.HttpProxy proxy) throws Exception {
         JSONObject params=new JSONObject();
         params.put("session",this.session);
         params.put("token",this.token);
@@ -67,7 +67,7 @@ public class CaptchaApi {
      * @return 成功返回 sid,sr
      * @throws
      */
-    private JSONObject captchaInitKey(JSONObject data,Proxy proxy) throws Exception {
+    private JSONObject captchaInitKey(JSONObject data,HttpServer.HttpProxy proxy) throws Exception {
         JSONObject res=this.postJson(data,proxy);
         JSONObject result= res.getJSONObject("data");
         result.remove("i18n");
@@ -82,7 +82,7 @@ public class CaptchaApi {
      * @return
      * @throws Exception
      */
-    private String captchaInitPage(JSONObject params,Proxy proxy) throws Exception {
+    private String captchaInitPage(JSONObject params,HttpServer.HttpProxy proxy) throws Exception {
         HttpServer httpServer=new HttpServer();
         try {
             HttpServer.HttpResponse response = httpServer.request(Api.apiUrl+"/api/captcha/init_page", params).execute();
@@ -100,7 +100,7 @@ public class CaptchaApi {
      * @param body 需要解密的数据字符串
      * @return 返回验证码图片网址
      */
-    private JSONObject putCaptchaData(String body,Proxy proxy) throws Exception {
+    private JSONObject putCaptchaData(String body,HttpServer.HttpProxy proxy) throws Exception {
         JSONObject params=new JSONObject();
         params.put("session",this.session);
         HttpServer httpServer=new HttpServer();
@@ -117,7 +117,7 @@ public class CaptchaApi {
         }
     }
 
-    private JSONObject downloadImg(JSONObject data,Proxy proxy){
+    private JSONObject downloadImg(JSONObject data,HttpServer.HttpProxy proxy){
         String captcha_url=data.getString("captcha_url");
         String slider_url=data.getString("slider_url");
         HttpServer httpServer=new HttpServer(proxy);
@@ -135,7 +135,7 @@ public class CaptchaApi {
      * @return
      * @throws Exception
      */
-    private String captchaVerify(JSONObject data,Proxy proxy) throws Exception {
+    private String captchaVerify(JSONObject data,HttpServer.HttpProxy proxy) throws Exception {
         JSONObject params=new JSONObject();
         params.put("session",session);
         HttpServer httpServer=new HttpServer();
@@ -172,7 +172,7 @@ public class CaptchaApi {
         }
     }
 
-    public String execute(Proxy proxy) throws Exception {
+    public String execute(HttpServer.HttpProxy proxy) throws Exception {
         JSONObject res=  this.captchaInitKey(proxy);
         String pageText= this.captchaInitPage(res,proxy);
         JSONObject resImg= this.putCaptchaData(pageText,proxy);

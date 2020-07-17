@@ -24,7 +24,7 @@
 /dist/
 /nbdist/
 /.nb-gradle/
-
+*/target/
 
 
 bin/

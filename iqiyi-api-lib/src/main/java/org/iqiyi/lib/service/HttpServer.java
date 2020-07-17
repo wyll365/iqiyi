@@ -7,6 +7,7 @@ import okhttp3.internal.Util;
 import org.iqiyi.lib.Api;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.security.MessageDigest;
 import java.util.*;
@@ -19,17 +20,51 @@ public class HttpServer {
 
 
     public HttpServer(){
-        this(null);
+        this(null,null);
     }
 
-    public HttpServer(Proxy proxy){
+    public HttpServer(Proxy proxy,final String username,final String password) {
+        this(proxy,null);
+        Authenticator authenticator = (route, response) -> {
+            String credential = Credentials.basic(username, password);
+            return response.request().newBuilder()
+                    .header("Proxy-Authorization", credential)
+                    .build();
+        };
+
+        this.clientBuilder.proxyAuthenticator(authenticator);
+
+    }
+
+    public HttpServer(Proxy proxy,Authenticator authenticator){
         this.clientBuilder=new OkHttpClient.Builder()
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(20,TimeUnit.SECONDS);
+                .connectTimeout(60, TimeUnit.SECONDS)
+                .readTimeout(60,TimeUnit.SECONDS);
         if(proxy!=null){
             this.clientBuilder.proxy(proxy);
         }
+       if(authenticator!=null){
+           this.clientBuilder.proxyAuthenticator(authenticator);
+       }
     }
+
+//    public HttpServer(Proxy proxy){
+//        this(proxy,"wyll365","qm4xbvmk");
+//    }
+
+    public HttpServer(HttpProxy proxy){
+        this();
+        if(proxy!=null) {
+            if(proxy!=null){
+                this.clientBuilder.proxy(proxy.proxy);
+            }
+            if(proxy.authenticator!=null){
+                this.clientBuilder.proxyAuthenticator(proxy.authenticator);
+            }
+        }
+    }
+
+
 
     private String toHex(byte[] bytes) {
         char[] HEX_DIGITS = "0123456789ABCDEF".toCharArray();
@@ -58,13 +93,31 @@ public class HttpServer {
         map.putAll(params);
         StringBuilder sb=new StringBuilder();
         for (Map.Entry<String,Object> entry:map.entrySet()) {
+            if(!"sign".equalsIgnoreCase(entry.getKey()))
             sb.append(entry.getKey()).append("=").append(entry.getValue()).append("&");
         }
         sb.append("appkey").append("=").append(Api.appKey);
         return this.md5(sb.toString());
     }
 
-
+    public HttpServer get(String url,JSONObject params){
+        httpResponse=null;
+        requestBuilder = new Request.Builder().url(url);
+        if(url.contains(Api.apiUrl)){
+            if(params==null)params=new JSONObject();
+            params.put("_timestamp",System.currentTimeMillis());
+            params.put("appid",Api.appId);
+            params.put("sign",makeSign(params));
+        }
+        HttpUrl.Builder httpBuilder=HttpUrl.parse(url).newBuilder();
+        if (params != null && !params.isEmpty()) {
+            for (String key:params.keySet()) {
+                httpBuilder.addQueryParameter(key,params.getString(key));
+            }
+        }
+        requestBuilder.url(httpBuilder.build());
+        return this;
+    }
 
     public HttpServer request(String url,JSONObject params,String postData,JSONObject header,JSONObject cookie) throws IOException {
         httpResponse=null;
@@ -84,8 +137,8 @@ public class HttpServer {
         requestBuilder.url(httpBuilder.build());
         if (postData != null) {
             if(postData.startsWith("{")&&postData.endsWith("}"))
-                requestBuilder.post(RequestBody.create(postData, MediaType.parse("application/json")));
-            else requestBuilder.post(RequestBody.create(postData, MediaType.parse("text/plain")));
+                requestBuilder.post(RequestBody.create(MediaType.parse("application/json"),postData));
+            else requestBuilder.post(RequestBody.create( MediaType.parse("text/plain"),postData));
         }else requestBuilder.post(Util.EMPTY_REQUEST);
 
 
@@ -136,6 +189,15 @@ public class HttpServer {
         }finally {
             if(response!=null)response.close();
         }
+    }
+
+    public String buildParams(JSONObject params) {
+        StringBuilder sb=new StringBuilder();
+        if(params==null||params.isEmpty())return sb.toString();
+        for (String key:params.keySet()){
+            sb.append(key).append("=").append(params.getString(key)).append("&");
+        }
+        return sb.toString();
     }
 
     public class HttpResponse {
@@ -205,5 +267,58 @@ public class HttpServer {
             this.isSuccess();
             return this;
         }
+    }
+
+    public static class HttpProxy{
+        private Proxy proxy;
+        private Authenticator authenticator;
+
+        public HttpProxy(String ip,String username,String password){
+            this(Proxy.NO_PROXY,username,password);
+            String[] ips=ip.split(":");
+            this. proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(ips[0], Integer.parseInt(ips[1])));
+        }
+
+        public HttpProxy(Proxy proxy,String username,String password){
+            this.proxy=proxy;
+            this.authenticator = (route, response) -> {
+                String credential = Credentials.basic(username, password);
+                return response.request().newBuilder()
+                        .header("Proxy-Authorization", credential)
+                        .build();
+            };
+        }
+
+        public HttpProxy(Proxy proxy){
+            this.proxy=proxy;
+        }
+
+        public Proxy getProxy() {
+            return proxy;
+        }
+
+        public void setProxy(Proxy proxy) {
+            this.proxy = proxy;
+        }
+
+        public Authenticator getAuthenticator() {
+            return authenticator;
+        }
+
+        public void setAuthenticator(Authenticator authenticator) {
+            this.authenticator = authenticator;
+        }
+
+        @Override
+        public String toString() {
+            return "HttpProxy{" +
+                    "proxy=" + proxy +
+                    '}';
+        }
+    }
+
+
+    public static void main(String[] args) {
+        RequestBody body=   RequestBody.create(MediaType.parse("application/json"),"");
     }
 }
